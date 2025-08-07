@@ -36,7 +36,7 @@ module.exports = async (req, res) => {
     }
 
     // Create a session for the Admin API client
-    const session = new Shopify.Session.Session({
+    const session = new shopify.session.Session({ // CORRECTED LINE
       id: 'offline_session', // A unique ID for this session
       shop: process.env.SHOPIFY_SHOP_DOMAIN,
       state: 'STATE_FROM_OAUTH_FLOW', // Placeholder
