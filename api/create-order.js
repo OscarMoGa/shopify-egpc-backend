@@ -1,15 +1,14 @@
-// api/create-order.js
-const Shopify = require('@shopify/shopify-api');
-const { LATEST_API_VERSION } = require('@shopify/shopify-api');
+const { shopifyApi, LATEST_API_VERSION } = require('@shopify/shopify-api');
+const { restResources } = require('@shopify/shopify-api/rest/admin/2023-10'); // Specify REST resources version
 
 // Initialize Shopify API
-Shopify.Context.initialize({
-  API_KEY: process.env.SHOPIFY_API_KEY,
-  API_SECRET_KEY: process.env.SHOPIFY_API_SECRET_KEY,
-  SCOPES: ['write_draft_orders', 'read_draft_orders'],
-  HOST_NAME: process.env.VERCEL_URL || 'localhost',
-  IS_EMBEDDED_APP: false,
-  API_VERSION: LATEST_API_VERSION,
+const shopify = shopifyApi({
+  apiKey: process.env.SHOPIFY_API_KEY,
+  apiSecretKey: process.env.SHOPIFY_API_SECRET_KEY,
+  scopes: ['write_draft_orders', 'read_draft_orders'],
+  hostName: process.env.VERCEL_URL || 'localhost', // Use Vercel's host name or localhost
+  apiVersion: LATEST_API_VERSION,
+  isEmbeddedApp: false,
 });
 
 module.exports = async (req, res) => {
@@ -36,7 +35,7 @@ module.exports = async (req, res) => {
     }
 
     // Create a session for the Admin API client
-    const session = new Shopify.Session.Session({
+    const session = shopify.session.create({
       id: 'offline_session', // A unique ID for this session
       shop: process.env.SHOPIFY_SHOP_DOMAIN,
       state: 'STATE_FROM_OAUTH_FLOW', // Placeholder
@@ -45,7 +44,7 @@ module.exports = async (req, res) => {
       scope: 'write_draft_orders,read_draft_orders',
     });
 
-    const client = new Shopify.Clients.Rest({ session });
+    const client = new shopify.clients.Rest({ session });
 
     // Fetch product variant details to get price and title
     const productVariant = await client.get({
@@ -59,7 +58,7 @@ module.exports = async (req, res) => {
     const variant = productVariant.body.variant;
 
     // Create a Draft Order
-    const draftOrder = new Shopify.Rest.AdminApi.DraftOrder({ session });
+    const draftOrder = new restResources.DraftOrder({ session }); // Use restResources
     draftOrder.line_items = [
       {
         variant_id: variant.id,
