@@ -1,12 +1,12 @@
 require('@shopify/shopify-api/adapters/node'); // Import the Node.js adapter
-const { shopifyApi, LATEST_API_VERSION, Session } = require('@shopify/shopify-api'); // Added Session
+const { shopifyApi, LATEST_API_VERSION, Session } = require('@shopify/shopify-api');
 const { restResources } = require('@shopify/shopify-api/rest/admin/2023-10'); // Specify REST resources version
 
 // Initialize Shopify API
 const shopify = shopifyApi({
   apiKey: process.env.SHOPIFY_API_KEY,
   apiSecretKey: process.env.SHOPIFY_API_SECRET_KEY,
-  scopes: ['write_draft_orders', 'read_draft_orders'],
+  scopes: ['write_draft_orders', 'read_draft_orders', 'read_products'], // Ensure read_products is included
   hostName: process.env.VERCEL_URL || 'localhost', // Use Vercel's host name or localhost
   apiVersion: LATEST_API_VERSION,
   isEmbeddedApp: false,
@@ -36,13 +36,13 @@ module.exports = async (req, res) => {
     }
 
     // Create a session for the Admin API client
-    const session = new Session({ // CORRECTED LINE: Use Session directly
+    const session = new Session({
       id: 'offline_session', // A unique ID for this session
       shop: process.env.SHOPIFY_SHOP_DOMAIN,
       state: 'STATE_FROM_OAUTH_FLOW', // Placeholder
       isOnline: false, // Use offline token
       accessToken: process.env.SHOPIFY_ADMIN_API_ACCESS_TOKEN,
-      scope: 'write_draft_orders,read_draft_orders',
+      scope: 'write_draft_orders,read_draft_orders,read_products', // Ensure scopes match
     });
 
     const client = new shopify.clients.Rest({ session });
@@ -58,8 +58,8 @@ module.exports = async (req, res) => {
 
     const variant = productVariant.body.variant;
 
-    // Create a Draft Order
-    const draftOrder = new restResources.DraftOrder({ session }); // Use restResources
+    // Create a Draft Order using the client
+    const draftOrder = new client.rest.DraftOrder({ session }); // CORRECTED LINE
     draftOrder.line_items = [
       {
         variant_id: variant.id,
