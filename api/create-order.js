@@ -10,6 +10,7 @@ const shopify = shopifyApi({
   hostName: process.env.VERCEL_URL || 'localhost', // Use Vercel's host name or localhost
   apiVersion: LATEST_API_VERSION,
   isEmbeddedApp: false,
+  restResources, // IMPORTANT: Pass restResources here
 });
 
 module.exports = async (req, res) => {
@@ -58,8 +59,8 @@ module.exports = async (req, res) => {
 
     const variant = productVariant.body.variant;
 
-    // Create a Draft Order using the client
-    const draftOrder = new client.rest.DraftOrder({ session }); // CORRECTED LINE
+    // Create a Draft Order using shopify.rest
+    const draftOrder = new shopify.rest.DraftOrder({ session }); // CORRECTED LINE
     draftOrder.line_items = [
       {
         variant_id: variant.id,
