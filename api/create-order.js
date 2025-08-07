@@ -2,36 +2,47 @@
          const Shopify = require('@shopify/shopify-api').default;
          const { LATEST_API_VERSION } = require('@shopify/shopify-api');
      
-         // Initialize Shopify API (credentials will come from Vercel Environment Variables)
-         // The API key and secret are needed for the session, even if not directly used in REST client
+         // Initialize Shopify API
          Shopify.Context.initialize({
            API_KEY: process.env.SHOPIFY_API_KEY,
            API_SECRET_KEY: process.env.SHOPIFY_API_SECRET_KEY,
-           SCOPES: ['write_draft_orders', 'read_draft_orders'], // Ensure these scopes are defined     
-           HOST_NAME: process.env.VERCEL_URL || 'localhost', // Use Vercel's host name or localhost    
-           IS_EMBEDDED_APP: false, // This is not an embedded app
+           SCOPES: ['write_draft_orders', 'read_draft_orders'],
+           HOST_NAME: process.env.VERCEL_URL || 'localhost',
+           IS_EMBEDDED_APP: false,
            API_VERSION: LATEST_API_VERSION,
          });
      
          module.exports = async (req, res) => {
-          if (req.method !== 'POST') {
+           // Set CORS headers for all responses
+           res.setHeader('Access-Control-Allow-Origin', '*'); // IMPORTANT: For production, replace '*' with your Shopify domain (e.g., 
+       'https://your-store.myshopify.com')
+           res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+           res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+           res.setHeader('Access-Control-Max-Age', '86400'); // Cache preflight for 24 hours
+     
+           // Handle preflight OPTIONS request
+           if (req.method === 'OPTIONS') {
+             return res.status(204).send(); // No content, just headers
+          }
+     
+           if (req.method !== 'POST') {
              return res.status(405).send('Method Not Allowed');
            }
      
            try {
              const { variantId, customer, shippingAddress } = req.body;
      
-             if (!variantId || !customer || !shippingAddress) {
-               return res.status(400).json({ success: false, message: 'Missing required fields.' });   
+            if (!variantId || !customer || !shippingAddress) {
+               return res.status(400).json({ success: false, message: 'Missing required fields.' });
              }
-    
-            // Create a session for the Admin API client
+     
+             // Create a session for the Admin API client
              const session = {
                shop: process.env.SHOPIFY_SHOP_DOMAIN,
                accessToken: process.env.SHOPIFY_ADMIN_API_ACCESS_TOKEN,
-               isOnline: true, // For offline access tokens
-               state: 'STATE_FROM_OAUTH_FLOW', // Placeholder, not strictly needed for direct access
-               scope: 'write_draft_orders,read_draft_orders', // Ensure scopes match
+               isOnline: true,
+               state: 'STATE_FROM_OAUTH_FLOW',
+               scope: 'write_draft_orders,read_draft_orders',
              };
      
              const client = new Shopify.Clients.Rest({ session });
@@ -48,11 +59,11 @@
              const variant = productVariant.body.variant;
      
              // Create a Draft Order
-           const draftOrder = new Shopify.Rest.AdminApi.DraftOrder({ session });
+             const draftOrder = new Shopify.Rest.AdminApi.DraftOrder({ session });
              draftOrder.line_items = [
                {
                  variant_id: variant.id,
-                 quantity: 1, // Assuming 1 for now, can be made dynamic later
+                 quantity: 1,
                  price: variant.price,
                  title: variant.title,
                },
@@ -63,8 +74,8 @@
                email: customer.email,
                phone: customer.phone,
              };
-            draftOrder.shipping_address = {
-              address1: shippingAddress.address1,
+             draftOrder.shipping_address = {
+               address1: shippingAddress.address1,
                city: shippingAddress.city,
                province: shippingAddress.province,
                country: shippingAddress.country,
@@ -74,9 +85,9 @@
                phone: customer.phone,
              };
              draftOrder.use_customer_default_address = false;
-             draftOrder.tags = 'EGPC'; // Tag the order for easy identification
+             draftOrder.tags = 'EGPC';
              draftOrder.note = 'Pedido generado por formulario EGPC (Pago Contra Entrega)';
-             draftOrder.send_receipt = false; // Do not send receipt automatically
+             draftOrder.send_receipt = false;
      
              await draftOrder.save({
                update: true,
@@ -85,15 +96,15 @@
              // Mark as paid and complete the order (for COD)
              const completedOrder = await client.post({
                path: `draft_orders/${draftOrder.id}/complete`,
-              data: {
-                payment_pending: true, // Mark as pending payment for COD
+               data: {
+                 payment_pending: true,
               },
               type: 'application/json',
             });
     
             res.status(200).json({ success: true, orderId: completedOrder.body.order.id, orderNumber: completedOrder.body.order.order_number });
     
-         } catch (error) {
+          } catch (error) {
             console.error('Error creating order:', error.response ? error.response.body : error);
             res.status(500).json({ success: false, message: 'Failed to create order.', error: error.message });
           }
