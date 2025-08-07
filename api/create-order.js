@@ -1,3 +1,4 @@
+require('@shopify/shopify-api/adapters/node'); // Import the Node.js adapter
 const { shopifyApi, LATEST_API_VERSION } = require('@shopify/shopify-api');
 const { restResources } = require('@shopify/shopify-api/rest/admin/2023-10'); // Specify REST resources version
 
