@@ -1,0 +1,12 @@
+ {
+          "name": "shopify-egpc-backend",
+          "version": "1.0.0",
+          "description": "Backend for Cash on Delivery orders in Shopify",
+          "main": "api/create-order.js",
+          "scripts": {
+            "start": "node api/create-order.js"
+          },
+          "dependencies": {
+            "@shopify/shopify-api": "^10.0.0"
+          }
+        }
