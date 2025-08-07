@@ -1,5 +1,5 @@
 require('@shopify/shopify-api/adapters/node'); // Import the Node.js adapter
-const { shopifyApi, LATEST_API_VERSION } = require('@shopify/shopify-api');
+const { shopifyApi, LATEST_API_VERSION, Session } = require('@shopify/shopify-api'); // Added Session
 const { restResources } = require('@shopify/shopify-api/rest/admin/2023-10'); // Specify REST resources version
 
 // Initialize Shopify API
@@ -36,7 +36,7 @@ module.exports = async (req, res) => {
     }
 
     // Create a session for the Admin API client
-    const session = new shopify.session.Session({ // CORRECTED LINE
+    const session = new Session({ // CORRECTED LINE: Use Session directly
       id: 'offline_session', // A unique ID for this session
       shop: process.env.SHOPIFY_SHOP_DOMAIN,
       state: 'STATE_FROM_OAUTH_FLOW', // Placeholder
