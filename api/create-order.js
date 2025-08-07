@@ -1,5 +1,5 @@
 // api/create-order.js
-const Shopify = require('@shopify/shopify-api').default;
+const Shopify = require('@shopify/shopify-api');
 const { LATEST_API_VERSION } = require('@shopify/shopify-api');
 
 // Initialize Shopify API
@@ -36,13 +36,14 @@ module.exports = async (req, res) => {
     }
 
     // Create a session for the Admin API client
-    const session = {
+    const session = new Shopify.Session.Session({
+      id: 'offline_session', // A unique ID for this session
       shop: process.env.SHOPIFY_SHOP_DOMAIN,
+      state: 'STATE_FROM_OAUTH_FLOW', // Placeholder
+      isOnline: false, // Use offline token
       accessToken: process.env.SHOPIFY_ADMIN_API_ACCESS_TOKEN,
-      isOnline: true,
-      state: 'STATE_FROM_OAUTH_FLOW',
       scope: 'write_draft_orders,read_draft_orders',
-    };
+    });
 
     const client = new Shopify.Clients.Rest({ session });
 
