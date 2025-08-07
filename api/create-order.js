@@ -1,6 +1,6 @@
 require('@shopify/shopify-api/adapters/node'); // Import the Node.js adapter
 const { shopifyApi, LATEST_API_VERSION, Session } = require('@shopify/shopify-api');
-const { restResources } = require('@shopify/shopify-api/rest/admin/latest'); // CORRECTED: Changed to 'latest'
+const { restResources } = require('@shopify/shopify-api'); // CORRECTED: Import restResources directly from the main package
 
 // Initialize Shopify API
 const shopify = shopifyApi({
