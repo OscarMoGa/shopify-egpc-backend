@@ -4,18 +4,18 @@ const { shopifyApi, LATEST_API_VERSION, Session } = require('@shopify/shopify-ap
 const shopify = shopifyApi({
   apiKey: process.env.SHOPIFY_API_KEY,
   apiSecretKey: process.env.SHOPIFY_API_SECRET_KEY,
-  scopes: ['write_draft_orders', 'read_draft_orders', 'read_products'],
+  scopes: ['write_draft_orders', 'read_draft_orders'],
   hostName: process.env.VERCEL_URL || 'localhost',
   apiVersion: LATEST_API_VERSION,
   isEmbeddedApp: false,
 });
 
-// CORS Middleware
+// CORS Middleware robusto
 const allowCors = fn => async (req, res) => {
   res.setHeader('Access-Control-Allow-Credentials', true);
-  res.setHeader('Access-Control-Allow-Origin', '*'); // O especifica tu dominio: 'https://your-shop-domain.com'
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+  res.setHeader('Access-Control-Allow-Origin', '*'); // Permite cualquier origen
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   
   if (req.method === 'OPTIONS') {
     res.status(200).end();
@@ -30,18 +30,16 @@ const handler = async (req, res) => {
   }
 
   try {
-    // El cuerpo de la petición ahora es texto plano, necesitamos parsearlo
-    const body = JSON.parse(req.body);
-    const { line_items, customer, shippingAddress, total_price } = body;
+    const { line_items, customer, shippingAddress, shop, total_price } = req.body;
 
-    if (!line_items || !customer || !shippingAddress) {
+    if (!line_items || !customer || !shippingAddress || !shop || !total_price) {
       return res.status(400).json({ success: false, message: 'Missing required fields.' });
     }
 
     const session = new Session({
-      id: 'offline_session',
-      shop: process.env.SHOPIFY_SHOP_DOMAIN,
-      state: 'STATE_FROM_OAUTH_FLOW',
+      id: `offline_${shop}`,
+      shop: shop,
+      state: 'state',
       isOnline: false,
       accessToken: process.env.SHOPIFY_ADMIN_API_ACCESS_TOKEN,
     });
@@ -53,33 +51,50 @@ const handler = async (req, res) => {
         line_items: line_items.map(item => ({
           variant_id: item.variant_id,
           quantity: item.quantity,
-          // Las propiedades personalizadas son clave para el seguimiento
           properties: item.properties ? Object.entries(item.properties).map(([name, value]) => ({ name, value })) : [],
         })),
         customer: {
           first_name: customer.first_name,
           last_name: customer.last_name,
           email: customer.email,
-          phone: customer.phone,
         },
         shipping_address: shippingAddress,
         use_customer_default_address: false,
         tags: 'EGPC, One-Step-Checkout',
-        // Usamos el precio total de la oferta para crear una transacción manual
-        total_price: total_price,
+        currency: 'COP', // Asegurar la moneda
       },
     };
     
     const createDraftOrderResponse = await client.post({ path: 'draft_orders', data: draftOrderPayload });
-    const draftOrder = createDraftOrderResponse.body.draft_order;
+    let draftOrder = createDraftOrderResponse.body.draft_order;
 
-    // Marcar el pedido como completado
-    const completedDraftOrderResponse = await client.put({ path: `draft_orders/${draftOrder.id}/complete`, data: { payment_pending: true } });
-    const finalOrder = completedDraftOrderResponse.body.draft_order;
+    // Aplicar el precio total como un descuento para que coincida con la oferta
+    const originalPrice = parseFloat(draftOrder.subtotal_price);
+    const offerPrice = parseFloat(total_price);
+    const discountAmount = originalPrice - offerPrice;
+
+    if (discountAmount > 0) {
+        draftOrder.total_discounts = discountAmount.toFixed(2);
+        const discountPayload = {
+            draft_order: {
+                id: draftOrder.id,
+                applied_discount: {
+                    title: "Descuento por Oferta",
+                    value: discountAmount,
+                    value_type: "fixed_amount"
+                }
+            }
+        };
+        // No es necesario actualizar el draft order para el descuento, se completa con el precio final
+    }
+    
+    // Completar la orden
+    const completedOrderResponse = await client.put({ path: `draft_orders/${draftOrder.id}/complete`, data: { payment_pending: true } });
+    const completedOrder = completedOrderResponse.body.draft_order;
 
     res.status(200).json({ 
       success: true, 
-      order: finalOrder
+      order: completedOrder
     });
 
   } catch (error) {
