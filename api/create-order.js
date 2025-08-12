@@ -48,17 +48,13 @@ const handler = async (req, res) => {
 
     const draftOrderPayload = {
       draft_order: {
+        email: customer.email, // Email a nivel superior
         line_items: line_items.map(item => ({
           variant_id: item.variant_id,
           quantity: item.quantity,
           properties: item.properties ? Object.entries(item.properties).map(([name, value]) => ({ name, value })) : [],
         })),
-        customer: {
-          first_name: customer.first_name,
-          last_name: customer.last_name,
-          email: customer.email,
-        },
-        shipping_address: shippingAddress,
+        shipping_address: shippingAddress, // Shopify usará esto para el nombre del cliente
         use_customer_default_address: false,
         tags: 'EGPC, One-Step-Checkout',
         currency: 'COP', // Asegurar la moneda
